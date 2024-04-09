@@ -1,0 +1,23 @@
+{
+    "compilerOptions": {
+        "target": "es6",
+        "module": "commonjs",
+        "outDir": "./build",
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "allowSyntheticDefaultImports": true,
+        "noFallthroughCasesInSwitch": true,
+        "moduleResolution": "node",
+        "resolveJsonModule": true,
+        "isolatedModules": true,
+        "sourceMap": true /* Generates corresponding '.map' file. */,
+        "strict": true,
+        "skipLibCheck": true,
+        "baseUrl": "./src",
+        "lib": [
+            "ES2021.String"
+        ],
+    },
+    "include": ["src"],
+    "exclude": ["node_modules"]
+}

@@ -1,0 +1,72 @@
+stages:
+    - install
+    - build
+    - deploy
+
+install:
+    image: node:16.17.0
+    stage: install
+    artifacts:
+        untracked: true
+    cache:
+        key:
+            files:
+                - yarn.json
+        paths:
+            - node_modules/
+    only:
+        - dev
+        - main
+    script:
+        - yarn install
+
+build:
+    image: node:16.17.0
+    stage: build
+    dependencies:
+        - install
+    only:
+        - dev
+        - main
+    script:
+        - yarn add dotenv-cli
+        - yarn lint --max-warnings=0
+        - yarn tsc
+
+deploy:development:
+    stage: deploy
+    image: docker:stable
+    environment:
+        name: development
+        url: https://dev-api.trackerai.bot
+    only:
+        - dev
+    script:
+        - echo "Deploying application..."
+        - apk add --no-cache rsync openssh
+        - mkdir -p ~/.ssh
+        - echo "$SSH_PRIVATE_KEY" >> private.key
+        - chmod 600 private.key
+        - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+        - rsync -rav --delete -e "ssh -i private.key" src yarn.lock tsconfig.json package.json $URL:/node/0xscanner
+        - ssh -i private.key $URL "cd /node/0xscanner && yarn && yarn tsc && pm2 restart 0xscanner-api"
+        - echo "Application successfully deployed."
+
+deploy:production:
+    stage: deploy
+    image: docker:stable
+    environment:
+        name: production
+        url: https://api.trackerai.bot
+    only:
+        - main
+    script:
+        - echo "Deploying application..."
+        - apk add --no-cache rsync openssh
+        - mkdir -p ~/.ssh
+        - echo "$SSH_PRIVATE_KEY" >> private.key
+        - chmod 600 private.key
+        - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+        - rsync -rav --delete -e "ssh -i private.key" src yarn.lock tsconfig.json package.json $URL:/node/0xscanner
+        - ssh -i private.key $URL "cd /node/0xscanner && yarn && yarn tsc && pm2 restart 0xscanner-api"
+        - echo "Application successfully deployed."
