@@ -1,7 +1,7 @@
 import express from 'express';
 import { Op } from 'sequelize';
 import { ethers } from 'ethers';
-import { accountDTO } from 'DTO/account';
+import { accountDTO } from '../DTO/account';
 import { StatusCode } from '../enums/StatusCode';
 import dataContext from '../database';
 

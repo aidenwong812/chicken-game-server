@@ -1,54 +1,127 @@
 import express from 'express';
-import * as web3 from "@solana/web3.js";
-import * as splToken from "@solana/spl-token";
+import * as web3 from '@solana/web3.js';
+import * as splToken from '@solana/spl-token';
 import { StatusCode } from '../enums/StatusCode';
+import {
+    getNumberDecimals,
+    initializeConnection,
+    initializeKeypair,
+} from '../utils/transfer';
 
 const routes = express.Router();
 
-routes.post('/', async (req, res) => {
-  const privateKey = process.env.ADMIN_WALLET;
-  const { address, amount } = req.body;
+routes.get('/', async (req, res) => {
+    res.status(StatusCode.OK).send({
+        result: 'Connected',
+    }),
+})
 
-  // Connect to cluster
-  var connection = new web3.Connection(web3.clusterApiUrl("devnet"));
-  // Construct wallet keypairs
-  var fromWallet = web3.Keypair.fromSecretKey(DEMO_WALLET_SECRET_KEY);
-  var toWallet = web3.Keypair.generate();
-  // Construct my token class
-  var myMint = new web3.PublicKey("My Mint Public Address");
-  var myToken = new splToken.Token(
-    connection,
-    myMint,
-    splToken.TOKEN_PROGRAM_ID,
-    fromWallet
-  );
-  // Create associated token accounts for my token if they don't exist yet
-  var fromTokenAccount = await myToken.getOrCreateAssociatedAccountInfo(
-    fromWallet.publicKey
-  )
-  var toTokenAccount = await myToken.getOrCreateAssociatedAccountInfo(
-    toWallet.publicKey
-  )
-  // Add token transfer instructions to transaction
-  var transaction = new web3.Transaction()
-    .add(
-      splToken.Token.createTransferInstruction(
-        splToken.TOKEN_PROGRAM_ID,
-        fromTokenAccount.address,
-        toTokenAccount.address,
-        fromWallet.publicKey,
-        [],
-        0
-      )
+routes.post('/', async (req, res) => {
+    const tokenContract = '6wYRTqoERmtRrWmsSCsTcLjNavdTMgxjmVhTEuM3S2tW';
+    const { address, amount } = req.body;
+    console.log(address)
+    console.log(amount)
+
+    const connection = initializeConnection();
+    const fromKeypair = initializeKeypair();
+
+    // Address receiving the tokens
+    const destinationWallet = new web3.PublicKey(address);
+
+    // The SLP token being transferred, this is the address for COQ INU
+    const mintAddress = new web3.PublicKey(tokenContract);
+
+    // Config priority fee and amount to transfer
+    const PRIORITY_RATE = 12345; // MICRO_LAMPORTS
+    const transferAmount = amount / 5;
+    const allowOwnerOffCurve = true;
+
+    // Instruction to set the compute unit price for priority fee
+    const PRIORITY_FEE_INSTRUCTIONS =
+        web3.ComputeBudgetProgram.setComputeUnitPrice({
+            microLamports: PRIORITY_RATE,
+        });
+
+    console.log('----------------------------------------');
+    const decimals = await getNumberDecimals(mintAddress, connection);
+
+    // Creates or fetches the associated token accounts for the sender and receiver.
+    const sourceAccount = await splToken.getOrCreateAssociatedTokenAccount(
+        connection,
+        fromKeypair,
+        mintAddress,
+        fromKeypair.publicKey,
+        allowOwnerOffCurve,
     );
-  // Sign transaction, broadcast, and confirm
-  var signature = await web3.sendAndConfirmTransaction(
-    connection,
-    transaction,
-    [fromWallet]
-  );
-  console.log("SIGNATURE", signature);
-  console.log("SUCCESS");
+    console.log(`Source Account: ${sourceAccount.address.toString()}`);
+
+    const destinationAccount = await splToken.getOrCreateAssociatedTokenAccount(
+        connection,
+        fromKeypair,
+        mintAddress,
+        destinationWallet,
+        allowOwnerOffCurve,
+    );
+    console.log(`Destination Account: ${destinationAccount.address.toString()}`);
+    console.log('----------------------------------------');
+
+    // Adjusts the transfer amount according to the token's decimals to ensure accurate transfers.
+    const transferAmountInDecimals = transferAmount * 10 ** decimals;
+
+    // Prepares the transfer instructions with all necessary information.
+    const transferInstruction = splToken.createTransferInstruction(
+        // Those addresses are the Associated Token Accounts belonging to the sender and receiver
+        sourceAccount.address,
+        destinationAccount.address,
+        fromKeypair.publicKey,
+        transferAmountInDecimals,
+    );
+    console.log(
+        `Transaction instructions: ${JSON.stringify(transferInstruction)}`,
+    );
+    const latestBlockhash = await connection.getLatestBlockhash('confirmed');
+
+    // Compiles and signs the transaction message with the sender's Keypair.
+    const messageV0 = new web3.TransactionMessage({
+        payerKey: fromKeypair.publicKey,
+        recentBlockhash: latestBlockhash.blockhash,
+        instructions: [PRIORITY_FEE_INSTRUCTIONS, transferInstruction],
+    }).compileToV0Message();
+    const versionedTransaction = new web3.VersionedTransaction(messageV0);
+    versionedTransaction.sign([fromKeypair]);
+    console.log("Transaction Signed. Preparing to send...");
+
+    // Attempts to send the transaction to the network, handling success or failure.
+    try {
+        const txid = await connection.sendTransaction(versionedTransaction, {
+            maxRetries: 20,
+        });
+        console.log(`Transaction Submitted: ${txid}`);
+
+        const confirmation = await connection.confirmTransaction(
+            {
+                signature: txid,
+                blockhash: latestBlockhash.blockhash,
+                lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+            },
+            'confirmed'
+        );
+        if (confirmation.value.err) {
+            throw new Error('🚨Transaction not confirmed.');
+        }
+        console.log(
+            `Transaction Successfully Confirmed! 🎉 View on SolScan: https://solscan.io/tx/${txid}`,
+        );
+
+        return res.status(StatusCode.OK).send({
+            txid,
+        });
+    } catch (error) {
+        console.error("Transaction failed", error);
+        return res.status(StatusCode.OK).send({
+            error,
+        });
+    }
 });
 
 export default routes;

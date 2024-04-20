@@ -31,7 +31,7 @@ sequelize.addHook('beforeCount', options => {
     // }
 });
 
-sequelize.authenticate();
+// sequelize.authenticate();
 
 const dataContext = initModels(sequelize);
 
