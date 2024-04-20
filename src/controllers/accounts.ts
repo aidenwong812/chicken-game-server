@@ -9,7 +9,7 @@ const routes = express.Router();
 const defaultChains = ['eth', 'bsc', 'arb', 'base'];
 
 routes.post('/addWallet', async (req, res) => {
-    const { accountId, wallet, username, personal } = req.body;
+    const { accountId, wallet, username } = req.body;
     // console.log(
     //     'accountId, wallet, username----',
     //     accountId,
@@ -17,9 +17,8 @@ routes.post('/addWallet', async (req, res) => {
     //     username,
     //     personal,
     // );
-    let Wallet;
 
-    Wallet = await dataContext.Wallets.findOne({
+    const Wallet = await dataContext.Wallets.findOne({
         where: {
             Wallet: {
                 [Op.eq]: wallet,

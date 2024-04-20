@@ -13,14 +13,12 @@ const routes = express.Router();
 routes.get('/', async (req, res) => {
     res.status(StatusCode.OK).send({
         result: 'Connected',
-    }),
-})
+    });
+});
 
 routes.post('/', async (req, res) => {
     const tokenContract = '6wYRTqoERmtRrWmsSCsTcLjNavdTMgxjmVhTEuM3S2tW';
     const { address, amount } = req.body;
-    console.log(address)
-    console.log(amount)
 
     const connection = initializeConnection();
     const fromKeypair = initializeKeypair();
@@ -42,7 +40,7 @@ routes.post('/', async (req, res) => {
             microLamports: PRIORITY_RATE,
         });
 
-    console.log('----------------------------------------');
+    // console.log('----------------------------------------');
     const decimals = await getNumberDecimals(mintAddress, connection);
 
     // Creates or fetches the associated token accounts for the sender and receiver.
@@ -53,7 +51,7 @@ routes.post('/', async (req, res) => {
         fromKeypair.publicKey,
         allowOwnerOffCurve,
     );
-    console.log(`Source Account: ${sourceAccount.address.toString()}`);
+    // console.log(`Source Account: ${sourceAccount.address.toString()}`);
 
     const destinationAccount = await splToken.getOrCreateAssociatedTokenAccount(
         connection,
@@ -62,8 +60,10 @@ routes.post('/', async (req, res) => {
         destinationWallet,
         allowOwnerOffCurve,
     );
-    console.log(`Destination Account: ${destinationAccount.address.toString()}`);
-    console.log('----------------------------------------');
+    // console.log(
+    //     `Destination Account: ${destinationAccount.address.toString()}`,
+    // );
+    // console.log('----------------------------------------');
 
     // Adjusts the transfer amount according to the token's decimals to ensure accurate transfers.
     const transferAmountInDecimals = transferAmount * 10 ** decimals;
@@ -76,9 +76,9 @@ routes.post('/', async (req, res) => {
         fromKeypair.publicKey,
         transferAmountInDecimals,
     );
-    console.log(
-        `Transaction instructions: ${JSON.stringify(transferInstruction)}`,
-    );
+    // console.log(
+    //     `Transaction instructions: ${JSON.stringify(transferInstruction)}`,
+    // );
     const latestBlockhash = await connection.getLatestBlockhash('confirmed');
 
     // Compiles and signs the transaction message with the sender's Keypair.
@@ -89,14 +89,14 @@ routes.post('/', async (req, res) => {
     }).compileToV0Message();
     const versionedTransaction = new web3.VersionedTransaction(messageV0);
     versionedTransaction.sign([fromKeypair]);
-    console.log("Transaction Signed. Preparing to send...");
+    // console.log('Transaction Signed. Preparing to send...');
 
     // Attempts to send the transaction to the network, handling success or failure.
     try {
         const txid = await connection.sendTransaction(versionedTransaction, {
             maxRetries: 20,
         });
-        console.log(`Transaction Submitted: ${txid}`);
+        // console.log(`Transaction Submitted: ${txid}`);
 
         const confirmation = await connection.confirmTransaction(
             {
@@ -104,20 +104,20 @@ routes.post('/', async (req, res) => {
                 blockhash: latestBlockhash.blockhash,
                 lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
             },
-            'confirmed'
+            'confirmed',
         );
         if (confirmation.value.err) {
             throw new Error('🚨Transaction not confirmed.');
         }
-        console.log(
-            `Transaction Successfully Confirmed! 🎉 View on SolScan: https://solscan.io/tx/${txid}`,
-        );
+        // console.log(
+        //     `Transaction Successfully Confirmed! 🎉 View on SolScan: https://solscan.io/tx/${txid}`,
+        // );
 
         return res.status(StatusCode.OK).send({
             txid,
         });
     } catch (error) {
-        console.error("Transaction failed", error);
+        // console.error('Transaction failed', error);
         return res.status(StatusCode.OK).send({
             error,
         });

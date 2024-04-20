@@ -8,7 +8,7 @@ export async function getNumberDecimals(
     const info = await connection.getParsedAccountInfo(mintAddress);
     const decimals = (info.value?.data as web3.ParsedAccountData).parsed.info
         .decimals as number;
-    console.log(`Token Decimals: ${decimals}`);
+    // console.log(`Token Decimals: ${decimals}`);
     return decimals;
 }
 
@@ -16,9 +16,9 @@ export async function getNumberDecimals(
 export function initializeKeypair(): web3.Keypair {
     const privateKey = new Uint8Array(bs58.decode(process.env.ADMIN_WALLET!));
     const keypair = web3.Keypair.fromSecretKey(privateKey);
-    console.log(
-        `Initialized Keypair: Public Key - ${keypair.publicKey.toString()}`,
-    );
+    // console.log(
+    //     `Initialized Keypair: Public Key - ${keypair.publicKey.toString()}`,
+    // );
     return keypair;
 }
 
@@ -30,6 +30,8 @@ export function initializeConnection(): web3.Connection {
         wsEndpoint: 'wss://api.mainnet-beta.solana.com',
     });
     // Redacting part of the RPC URL for security/log clarity
-    console.log(`Initialized Connection to Solana RPC: ${rpcUrl.slice(0, -32)}`);
+    // console.log(
+    //     `Initialized Connection to Solana RPC: ${rpcUrl.slice(0, -32)}`,
+    // );
     return connection;
 }
